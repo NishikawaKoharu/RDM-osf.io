@@ -1262,17 +1262,10 @@ def _create_import_error_list(wiki_infos, imported_list):
     info_path = []
     imported_path = []
     for info in wiki_infos:
-        # Normalize path for comparison (case-insensitive, NFC normalized)
-        normalized_path = unicodedata.normalize('NFC', info['path']).lower()
-        info_path.append(normalized_path)
+        info_path.append(info['path'])
     for imported in imported_list:
-        # Normalize path for comparison (case-insensitive, NFC normalized)
-        normalized_path = unicodedata.normalize('NFC', imported['path']).lower()
-        imported_path.append(normalized_path)
-    # Find paths that are in info_path but not in imported_path
-    # Use original path from wiki_infos for error message
-    info_path_map = {unicodedata.normalize('NFC', info['path']).lower(): info['path'] for info in wiki_infos}
-    import_errors = [info_path_map[path] for path in set(info_path) - set(imported_path)]
+        imported_path.append(imported['path'])
+    import_errors = list(set(info_path) ^ set(imported_path))
     return import_errors
 
 @must_be_valid_project
