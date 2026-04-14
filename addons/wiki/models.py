@@ -15,10 +15,10 @@ from bleach.callbacks import nofollow
 from bleach import Cleaner
 from functools import partial
 from bleach.linkifier import LinkifyFilter
-from django.db import models
+from django.db import models, transaction
 from framework.forms.utils import sanitize
 from markdown.extensions import codehilite, fenced_code, wikilinks
-from osf.models import NodeLog, OSFUser, Comment
+from osf.models import NodeLog, OSFUser, Comment, AbstractNode
 from osf.models.base import BaseModel, GuidMixin, ObjectIDMixin
 from osf.models.spam import SpamStatus
 from osf.utils.fields import NonNaiveDateTimeField
@@ -243,17 +243,28 @@ class WikiVersion(ObjectIDMixin, BaseModel):
 class WikiPageNodeManager(models.Manager):
 
     def create_for_node(self, node, name, content, auth, parent=None, is_wiki_import=False, add_activity_log=True):
-        existing_wiki_page = WikiPage.objects.get_for_node(node, name)
-        if existing_wiki_page:
-            raise NodeStateError('Wiki Page already exists.')
-
-        wiki_page = WikiPage.objects.create(
-            node=node,
-            page_name=name,
-            user=auth.user,
-            parent=parent,
-            is_wiki_import=is_wiki_import
-        )
+        normalized_name = (name or '').strip()
+        
+        with transaction.atomic():
+            # 同一ノードへの wiki 作成を直列化
+            AbstractNode.objects.select_for_update().get(pk=node.pk)
+            
+            # ロック下で重複再チェック（大文字小文字は同一扱い）
+            existing_wiki_page = WikiPage.objects.filter(
+                node=node,
+                deleted__isnull=True,
+                page_name__iexact=normalized_name,
+            ).first()
+            if existing_wiki_page:
+                raise NodeStateError('Wiki Page already exists.')
+            
+            wiki_page = WikiPage.objects.create(
+                node=node,
+                page_name=normalized_name,
+                user=auth.user,
+                parent=parent,
+                is_wiki_import=is_wiki_import
+            )
         # Creates a WikiVersion object
         wiki_page.update(auth.user, content, is_wiki_import=is_wiki_import, add_log=add_activity_log)
         return wiki_page
@@ -448,44 +459,50 @@ class WikiPage(GuidMixin, BaseModel):
         :param auth: All the auth information including user, API key.
         """
         new_name = (new_name or '').strip()
-        existing_wiki_page = WikiPage.objects.get_for_node(self.node, new_name)
         key = wiki_utils.to_mongo_key(self.page_name)
         new_key = wiki_utils.to_mongo_key(new_name)
 
         if key == 'home':
             raise PageCannotRenameError('Cannot rename wiki home page')
-        if (existing_wiki_page and not existing_wiki_page.deleted and key != new_key) or new_key == 'home':
+        if new_key == 'home':
             raise PageConflictError(
-                'Page already exists with name {0}'.format(
-                    new_name,
-                )
+                'Page already exists with name {0}'.format(new_name)
             )
 
-        # rename the page first in case we hit a validation exception.
-        old_name = self.page_name
-        self.page_name = new_name
+        with transaction.atomic():
+            AbstractNode.objects.select_for_update().get(pk=self.node.pk)
 
-        # TODO: merge historical records like update (prevents log breaks)
-        # transfer the old page versions/current keys to the new name.
-        if key != new_key:
-            if key in self.node.wiki_private_uuids:
-                self.node.wiki_private_uuids[new_key] = self.node.wiki_private_uuids[key]
-                del self.node.wiki_private_uuids[key]
+            existing = WikiPage.objects.get_for_node(self.node, new_name)
+            if existing and not existing.deleted and existing.id != self.id:
+                raise PageConflictError(
+                    'Page already exists with name {0}'.format(new_name)
+                )
 
-        self.node.add_log(
-            action=NodeLog.WIKI_RENAMED,
-            params={
-                'project': self.node.parent_id,
-                'node': self.node._primary_key,
-                'page': self.page_name,
-                'page_id': self._primary_key,
-                'old_page': old_name,
-                'version': self.current_version_number,
-            },
-            auth=auth,
-            save=True,
-        )
-        self.save()
+            # rename the page first in case we hit a validation exception.
+            old_name = self.page_name
+            self.page_name = new_name
+
+            # TODO: merge historical records like update (prevents log breaks)
+            # transfer the old page versions/current keys to the new name.
+            if key != new_key:
+                if key in self.node.wiki_private_uuids:
+                    self.node.wiki_private_uuids[new_key] = self.node.wiki_private_uuids[key]
+                    del self.node.wiki_private_uuids[key]
+
+            self.node.add_log(
+                action=NodeLog.WIKI_RENAMED,
+                params={
+                    'project': self.node.parent_id,
+                    'node': self.node._primary_key,
+                    'page': self.page_name,
+                    'page_id': self._primary_key,
+                    'old_page': old_name,
+                    'version': self.current_version_number,
+                },
+                auth=auth,
+                save=True,
+            )
+            self.save()
         return self
 
     def delete(self, auth):
