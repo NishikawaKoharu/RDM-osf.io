@@ -265,7 +265,7 @@ class WikiPageNodeManager(models.Manager):
                 page_name__iexact=name,
                 deleted__isnull=True,
                 node=node,
-            ).order_by('-modified', '-id').first()
+            ).order_by('created', 'id').first()
         return WikiPage.load(id)
 
     def get_for_child_nodes(self, node, parent=None):
