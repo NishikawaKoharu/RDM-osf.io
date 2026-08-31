@@ -4,10 +4,13 @@ import logging
 import uuid
 import unicodedata
 import ssl
+import datetime
 from future.moves.urllib.parse import quote
 
+import jwt
 from pymongo import MongoClient
 import requests
+from django.utils import timezone
 from bs4 import BeautifulSoup
 from django.apps import apps
 
@@ -64,6 +67,28 @@ def get_sharejs_uuid(node, wname):
         str(node._id)
     )) if private_uuid else None
 
+
+def generate_y_websocket_token(doc_id):
+    """
+    Generate a signed JWT for y-websocket connection authorization.
+    Returns an empty string when Y_WEBSOCKET_SECRET is not configured.
+    """
+    secret = wiki_settings.Y_WEBSOCKET_SECRET
+    if not secret or not doc_id:
+        return ''
+
+    payload = {
+        'doc_id': doc_id,
+        'exp': timezone.now() + datetime.timedelta(seconds=wiki_settings.Y_WEBSOCKET_TOKEN_TTL),
+    }
+    token = jwt.encode(
+        payload,
+        secret,
+        algorithm=wiki_settings.Y_WEBSOCKET_JWT_ALGORITHM,
+    )
+    if isinstance(token, bytes):
+        return token.decode()
+    return token
 
 def delete_share_doc(node, wname):
     """Deletes share document and removes namespace from model."""
