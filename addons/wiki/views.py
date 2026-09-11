@@ -772,6 +772,9 @@ def serialize_component_wiki(node, auth):
     return None
 
 @must_be_valid_project
+@must_have_permission(ADMIN)
+@must_not_be_registration
+@must_have_addon('wiki', 'node')
 def project_wiki_validate_for_import(dir_id, node, **kwargs):
     wiki_utils.check_file_object_in_node(dir_id, node)
     node_id = node.guids.first()._id
@@ -1306,6 +1309,8 @@ def _create_import_error_list(wiki_infos, imported_list):
     return import_errors
 
 @must_be_valid_project
+@must_have_permission(ADMIN)
+@must_not_be_registration
 @must_have_addon('wiki', 'node')
 def project_get_task_result(task_id, node, **kwargs):
     res = AsyncResult(task_id, app=celery_app)

@@ -1245,7 +1245,7 @@ class TestWikiViews(OsfTestCase, unittest.TestCase):
         mock_check_file_object_in_node.return_value = True
         dir_id = self.root_import_folder1._id
         url = self.project.api_url_for('project_wiki_validate_for_import', dir_id=dir_id)
-        res = self.app.get(url)
+        res = self.app.get(url, auth=self.user.auth)
         response_json = res.json
         task_id = response_json['taskId']
         uuid_obj = uuid.UUID(task_id)
