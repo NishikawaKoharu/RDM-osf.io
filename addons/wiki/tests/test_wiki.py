@@ -182,6 +182,40 @@ class TestWikiViews(OsfTestCase):
         new_wiki = WikiVersion.objects.get_for_node(self.project, 'home')
         assert_equal(new_wiki.content, 'new content')
 
+    def test_project_wiki_edit_post_publicly_editable_requires_login(self):
+        wiki = self.project.get_addon('wiki')
+        wiki.set_editing(permissions=True, auth=self.consolidate_auth, log=True)
+        url = self.project.api_url_for('project_wiki_edit_post', wname='home')
+        res = self.app.post_json(
+            url,
+            {'markdown': 'anonymous edit'},
+            expect_errors=True,
+        )
+        assert_equal(res.status_code, 401)
+        home = WikiVersion.objects.get_for_node(self.project, 'home')
+        assert_not_equal(home.content, 'anonymous edit')
+
+    def test_project_wiki_edit_post_publicly_editable_allows_logged_in_non_contributor(self):
+        wiki = self.project.get_addon('wiki')
+        wiki.set_editing(permissions=True, auth=self.consolidate_auth, log=True)
+        non_contributor = AuthUserFactory()
+        url = self.project.api_url_for('project_wiki_edit_post', wname='home')
+        res = self.app.post_json(
+            url,
+            {'markdown': 'non contributor edit'},
+            auth=non_contributor.auth,
+        )
+        assert_equal(res.status_code, 302)
+        home = WikiVersion.objects.get_for_node(self.project, 'home')
+        assert_equal(home.content, 'non contributor edit')
+
+    def test_wiki_page_draft_publicly_editable_requires_login(self):
+        wiki = self.project.get_addon('wiki')
+        wiki.set_editing(permissions=True, auth=self.consolidate_auth, log=True)
+        url = self.project.api_url_for('wiki_page_draft', wname='home')
+        res = self.app.get(url, expect_errors=True)
+        assert_equal(res.status_code, 401)
+
     def test_project_wiki_edit_post_non_nfc_input(self):
         wname = 'new name'
         nfd_wname = unicodedata.normalize('NFD', wname)

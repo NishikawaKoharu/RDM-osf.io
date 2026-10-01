@@ -370,3 +370,14 @@ class TestWikiVersionCreate(WikiCRUDTestCase):
             auth=user_non_contributor.auth
         )
         assert res.status_code == 201
+
+    def test_do_not_update_wiki_page_if_publicly_editable_unauthenticated(
+        self, app, user_creator, project_public, url_wiki_versions_public, wiki_public
+    ):
+        project_public.addons_wiki_node_settings.set_editing(True, auth=Auth(user_creator))
+        res = app.post_json_api(
+            url_wiki_versions_public,
+            update_payload(wiki_public, fake.text()),
+            expect_errors=True
+        )
+        assert res.status_code == 401

@@ -438,7 +438,11 @@ def must_have_permission(permission):
     return wrapper
 
 def must_have_write_permission_or_public_wiki(func):
-    """ Checks if user has write permission or wiki is public and publicly editable. """
+    """Allow WRITE contributors, or logged-in users when wiki is publicly editable.
+
+    Publicly editable wikis still require authentication so anonymous users
+    cannot create, edit, or read drafts.
+    """
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
         # Ensure `project` and `node` kwargs
@@ -447,6 +451,9 @@ def must_have_write_permission_or_public_wiki(func):
         wiki = kwargs['node'].get_addon('wiki')
 
         if wiki and wiki.is_publicly_editable:
+            kwargs['auth'] = Auth.from_kwargs(request.args.to_dict(), kwargs)
+            if kwargs['auth'].user is None:
+                raise HTTPError(http_status.HTTP_401_UNAUTHORIZED)
             return func(*args, **kwargs)
         else:
             return must_have_permission(WRITE)(func)(*args, **kwargs)
