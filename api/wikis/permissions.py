@@ -12,9 +12,13 @@ class ContributorOrPublic(permissions.BasePermission):
         auth = get_user_auth(request)
         if request.method in permissions.SAFE_METHODS:
             return obj.node.is_public or obj.node.can_view(auth)
+        # Publicly editable still requires a logged-in user (matches UI / v1 API).
         return (
             obj.node.can_edit(auth)
-            or obj.node.addons_wiki_node_settings.is_publicly_editable
+            or (
+                auth.user is not None
+                and obj.node.addons_wiki_node_settings.is_publicly_editable
+            )
         )
 
 class ContributorOrPublicWikiVersion(permissions.BasePermission):
