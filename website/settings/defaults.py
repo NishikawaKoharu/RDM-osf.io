@@ -219,28 +219,20 @@ PROFILE_IMAGE_PROVIDER = 'gravatar'
 # Conference options
 CONFERENCE_MIN_COUNT = 5
 
+# Allow HTML produced by wiki toolbar / commonmark rendering.
+# Intentionally excludes embed/object/iframe and layout styles (position/z-index).
 WIKI_WHITELIST = {
     'tags': [
-        'a', 'abbr', 'acronym', 'b', 'bdo', 'big', 'blockquote', 'br',
-        'center', 'cite', 'code',
-        'dd', 'del', 'dfn', 'div', 'dl', 'dt', 'em', 'embed', 'font',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins',
-        'kbd', 'li', 'object', 'ol', 'param', 'pre', 'p', 'q',
-        's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup',
-        'table', 'tbody', 'td', 'th', 'thead', 'tr', 'tt', 'ul', 'u',
-        'var', 'wbr',
+        'a', 'b', 'blockquote', 'br', 'code', 'del', 'em',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img',
+        'li', 'ol', 'p', 'pre', 'span', 'strong', 'table', 'tbody',
+        'td', 'th', 'thead', 'tr', 'ul', 'u',
     ],
     'attributes': [
-        'align', 'alt', 'border', 'cite', 'class', 'dir',
-        'height', 'href', 'id', 'src', 'style', 'title', 'type', 'width',
-        'face', 'size',  # font tags
-        'salign', 'align', 'wmode', 'target',
+        'alt', 'class', 'height', 'href', 'id', 'src', 'style', 'title', 'width',
     ],
-    # Styles currently used in Reproducibility Project wiki pages
     'styles': [
-        'top', 'left', 'width', 'height', 'position',
-        'background', 'font-size', 'text-align', 'z-index',
-        'list-style',
+        'color',
     ]
 }
 

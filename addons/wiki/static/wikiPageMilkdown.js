@@ -4,6 +4,7 @@ var $ = require('jquery');
 var $osf = require('js/osfHelpers');
 var diffTool = require('js/diffTool');
 var _ = require('js/rdmGettext')._;
+var sanitizeWikiMarkdown = require('addons/wiki/static/sanitizeWikiMarkdown').sanitizeWikiMarkdown;
 var yjs = require('yjs');
 var yWebsocket = require('y-websocket');
 var yIndexeddb = require('y-indexeddb');
@@ -56,6 +57,7 @@ async function createMView(editor, markdown) {
     }
     var viewonly = true;
     const editable = () => !viewonly;
+    markdown = sanitizeWikiMarkdown(markdown || '');
     mView = await mCore.Editor
         .make()
         .config(ctx => {
@@ -121,6 +123,8 @@ async function createMEditor(editor, vm, template) {
     const indexeddbProvider = wikiId ? new yIndexeddb.IndexeddbPersistence(wikiId, doc) : (console.error('Invalid wikiId: it must not be null, undefined, or empty'), null);
     const wsProvider = new yWebsocket.WebsocketProvider(wsUrl, docId, doc);
 
+    template = sanitizeWikiMarkdown(template || '');
+
     mEdit = await mCore.Editor
         .make()
         .config(ctx => {
@@ -153,6 +157,30 @@ async function createMEditor(editor, vm, template) {
             ctx.update(mCore.editorViewOptionsCtx, (prev) => ({
                 ...prev,
                 editable,
+                handlePaste(view, event) {
+                    if (!event.clipboardData) {
+                        return false;
+                    }
+                    var plain = event.clipboardData.getData('text/plain');
+                    var html = event.clipboardData.getData('text/html') || '';
+                    if (typeof plain !== 'string') {
+                        return false;
+                    }
+                    if (plain) {
+                        var sanitized = sanitizeWikiMarkdown(plain);
+                        if (sanitized !== plain || /<(embed|object|iframe|script)\b/i.test(html)) {
+                            event.preventDefault();
+                            view.dispatch(view.state.tr.insertText(sanitized).scrollIntoView());
+                            return true;
+                        }
+                        return false;
+                    }
+                    if (/<(embed|object|iframe|script)\b/i.test(html)) {
+                        event.preventDefault();
+                        return true;
+                    }
+                    return false;
+                },
             }));
         })
         .config(mNord.nord)
@@ -976,6 +1004,7 @@ function ViewModel(options){
             const serializer = ctx.get(mCore.serializerCtx);
             toMarkdown = serializer(view.state.doc);
         });
+        toMarkdown = sanitizeWikiMarkdown(toMarkdown);
         var pageUrl = window.contextVars.wiki.urls.page;
         $.ajax({
             url:pageUrl,

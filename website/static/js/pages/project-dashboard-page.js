@@ -21,6 +21,7 @@ var CitationWidget = require('js/citationWidget');
 var mathrender = require('js/mathrender');
 var md = require('js/markdown').full;
 var oldMd = require('js/markdown').old;
+var sanitizeWikiMarkdown = require('addons/wiki/static/sanitizeWikiMarkdown').sanitizeWikiMarkdown;
 var AddProject = require('js/addProjectPlugin');
 var SocialShare = require('js/components/socialshare');
 var gettext = require('js/rdmGettext')._;
@@ -811,7 +812,7 @@ $(document).ready(function () {
         request.done(function(resp) {
             var rawText;
             if(resp.wiki_content){
-                rawText = resp.wiki_content;
+                rawText = sanitizeWikiMarkdown(resp.wiki_content);
             } else if(window.contextVars.currentUser.canEdit) {
                 rawText = _('*Add important information, links, or images here to describe your project.*');
             } else {
@@ -822,10 +823,9 @@ $(document).ready(function () {
             // don't truncate the text when length = 400
             var truncatedText = $.truncate(renderedText, {length: 401});
             truncatedText = truncatedText.replace(/<a href="\.\.\/(.*?)\/">/g, `<a href="../${node.id}/wiki/$1/">`);
-            //#47039　Add　Start
-            truncatedText = truncatedText.replace(/\&lt\;/g, `<`);
-            truncatedText = truncatedText.replace(/\&gt\;/g, `>`);
-            //#47039　Add　End
+            // Drop embeds / iframes (e.g. markdown-it-video) so widget matches wiki allowlist policy.
+            truncatedText = truncatedText.replace(/<(embed|object|iframe|script)(\s[^>]*)?>[\s\S]*?<\/\1>/gi, '');
+            truncatedText = truncatedText.replace(/<(embed|object|iframe|script)(\s[^>]*)?\/?>/gi, '');
             markdownElement.html(truncatedText);
             mathrender.mathjaxify(markdownElement);
 
