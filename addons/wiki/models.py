@@ -25,6 +25,7 @@ from osf.utils.fields import NonNaiveDateTimeField
 from osf.utils.requests import get_request_and_user_id, string_type_request_headers
 from osf.exceptions import NodeStateError
 from addons.wiki import utils as wiki_utils
+from addons.wiki.sanitize import sanitize_wiki_markdown
 from addons.wiki.exceptions import (
     PageCannotRenameError,
     PageConflictError,
@@ -321,6 +322,7 @@ class WikiPage(GuidMixin, BaseModel):
         :param content: Latest content for wiki
         :param add_log: Whether to add WIKI_UPDATED to the activity log (default True)
         """
+        content = sanitize_wiki_markdown(content)
         version = WikiVersion(user=user, wiki_page=self, content=content, identifier=self.current_version_number + 1)
         version.save(is_wiki_import=is_wiki_import)
 
