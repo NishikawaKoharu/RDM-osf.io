@@ -170,10 +170,10 @@ function sanitizeWikiMarkdown(content) {
     if (!content) {
         return content;
     }
-    var protected = protectRegions(content);
-    content = sanitizeHtmlFragment(protected.content);
+    var protectedRegions = protectRegions(content);
+    content = sanitizeHtmlFragment(protectedRegions.content);
     content = sanitizeMarkdownUrls(content);
-    content = restoreRegions(content, protected.protectedChunks);
+    content = restoreRegions(content, protectedRegions.protectedChunks);
     return content;
 }
 
