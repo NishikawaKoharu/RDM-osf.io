@@ -24,6 +24,8 @@
 .wiki-editor-dynamic {
     height: calc(100vh - 350px);
     min-height: 400px;
+    width: 100%;
+    box-sizing: border-box;
     transition: height 0.3s ease;
 }
 

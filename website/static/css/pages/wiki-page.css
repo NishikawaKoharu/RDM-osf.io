@@ -377,6 +377,15 @@ select.form-control {
 .mFrame {
     overflow: auto;
     height: 400px;
+    /* Keep editor usable in split Compare view; without this the width can collapse to 1px. */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#mEditor .milkdown,
+#mEditor .ProseMirror {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .wiki-editor-modal-label {
